@@ -1,4 +1,4 @@
-Terraform Provider
+Terraform Firebase Provider
 ==================
 
 - Website: https://www.terraform.io
@@ -23,7 +23,7 @@ Usage
 
 ```
 # For example, restrict template version in 0.1.x
-provider "template" {
+provider "firebase" {
   version = "~> 0.1"
 }
 ```
@@ -31,17 +31,17 @@ provider "template" {
 Building The Provider
 ---------------------
 
-Clone repository to: `$GOPATH/src/github.com/terraform-providers/terraform-provider-template`
+Clone repository to: `$GOPATH/src/github.com/terraform-providers/terraform-provider-firebase`
 
 ```sh
 $ mkdir -p $GOPATH/src/github.com/terraform-providers; cd $GOPATH/src/github.com/terraform-providers
-$ git clone git@github.com:terraform-providers/terraform-provider-template
+$ git clone git@github.com:terraform-providers/terraform-provider-firebase
 ```
 
 Enter the provider directory and build the provider
 
 ```sh
-$ cd $GOPATH/src/github.com/terraform-providers/terraform-provider-template
+$ cd $GOPATH/src/github.com/terraform-providers/terraform-provider-firebase
 $ make build
 ```
 
@@ -59,7 +59,7 @@ To compile the provider, run `make build`. This will build the provider and put 
 ```sh
 $ make bin
 ...
-$ $GOPATH/bin/terraform-provider-template
+$ $GOPATH/bin/terraform-provider-firebase
 ...
 ```
 
