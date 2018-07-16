@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/eliaszs/terraform-provider-firebase/firebase"
 	"github.com/hashicorp/terraform/plugin"
-	"github.com/terraform-providers/terraform-provider-template/template"
 )
 
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: template.Provider})
+		ProviderFunc: firebase.Provider})
 }
