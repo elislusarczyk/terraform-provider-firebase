@@ -34,13 +34,12 @@ func resourceFirebaseUser() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"uid": {
 				Type:         schema.TypeString,
-				Optional:     true,
+				Required:     true,
 				ValidateFunc: validation.StringLenBetween(1, 128),
 			},
 			"display_name": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ForceNew:     true,
 				Default:      "",
 				ValidateFunc: validation.StringLenBetween(0, 128),
 			},
@@ -80,8 +79,9 @@ func resourceFirebaseUser() *schema.Resource {
 }
 
 func resourceFirebaseUserCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(Client).Auth
+	log.Printf("[INFO] Creating user uid: %s", d.Get("uid").(string))
 
+	client := meta.(Client).Auth
 	var u auth.UserToCreate
 
 	u.UID(d.Get("uid").(string))
@@ -96,8 +96,6 @@ func resourceFirebaseUserCreate(d *schema.ResourceData, meta interface{}) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[DEBUG] userRecord: %+v", userRecord)
-
 	log.Printf("[INFO] UID: %s", userRecord.UserInfo.UID)
 
 	// Store the resulting UID so we can look this up later
@@ -108,22 +106,23 @@ func resourceFirebaseUserCreate(d *schema.ResourceData, meta interface{}) error 
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"deleted"},
 		Target:     []string{"created"},
-		Refresh:    userStateRefreshFunc(client, d.Id(), []string{}),
+		Refresh:    userStateRefreshFunc(client, d.Id()),
 		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      5 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      1 * time.Second,
+		MinTimeout: 2 * time.Second,
 	}
 
 	_, err = stateConf.WaitForState()
 	if err != nil {
 		return fmt.Errorf(
-			"Error waiting for user (%s) to be created: %s", d.Id(), err)
+			"Error waiting for user (%s) state to be created: %s", d.Id(), err)
 	}
 
 	return resourceFirebaseUserUpdate(d, meta)
 }
 
 func resourceFirebaseUserRead(d *schema.ResourceData, meta interface{}) error {
+	log.Printf("[INFO] Reading user uid: %s", d.Id())
 	client := meta.(Client).Auth
 
 	userRecord, err := client.GetUser(context.Background(), d.Id())
@@ -143,37 +142,46 @@ func resourceFirebaseUserRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceFirebaseUserUpdate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(Client).Auth
+	log.Printf("[DEBUG] update resource %+v\n", d)
 
-	d.Partial(true)
+	if !d.IsNewResource() {
+		d.Partial(true)
+	}
 
 	changed := false
 	if d.HasChange("uid") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("uid")
 	}
 	if d.HasChange("email") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("email")
 	}
 	if d.HasChange("display_name") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("display_name")
 	}
 	if d.HasChange("email_verified") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("email_verified")
 	}
 	if d.HasChange("phone_number") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("phone_number")
 	}
 	if d.HasChange("password") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("password")
 	}
 	if d.HasChange("photo_url") && !d.IsNewResource() {
 		changed = true
+		d.SetPartial("photo_url")
 	}
 
 	if changed {
-		var u auth.UserToUpdate
-
 		log.Printf("[INFO] Updating uid: %s", d.Id())
+		client := meta.(Client).Auth
+		var u auth.UserToUpdate
 
 		u.Email(d.Get("email").(string))
 		u.DisplayName(d.Get("display_name").(string))
@@ -182,19 +190,19 @@ func resourceFirebaseUserUpdate(d *schema.ResourceData, meta interface{}) error 
 		u.Password(d.Get("password").(string))
 		u.PhotoURL(d.Get("photo_url").(string))
 
-		userRecord, err := client.UpdateUser(context.Background(), d.Id(), &u)
+		_, err := client.UpdateUser(context.Background(), d.Id(), &u)
 		if err != nil {
 			return err
 		}
-
-		log.Printf("[DEBUG] userRecord: %+v", userRecord)
 	}
 	return nil
 }
 
 func resourceFirebaseUserDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(Client).Auth
 	log.Printf("[INFO] Deleting uid: %s", d.Id())
+
+	client := meta.(Client).Auth
+
 	err := client.DeleteUser(context.Background(), d.Id())
 	if err != nil {
 		return err
@@ -205,30 +213,31 @@ func resourceFirebaseUserDelete(d *schema.ResourceData, meta interface{}) error 
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"created"},
 		Target:     []string{"deleted"},
-		Refresh:    userStateRefreshFunc(client, d.Id(), []string{}),
+		Refresh:    userStateRefreshFunc(client, d.Id()),
 		Timeout:    d.Timeout(schema.TimeoutDelete),
-		Delay:      5 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      1 * time.Second,
+		MinTimeout: 2 * time.Second,
 	}
 
 	_, err = stateConf.WaitForState()
 	if err != nil {
 		return fmt.Errorf(
-			"Error waiting for user (%s) to be created: %s", d.Id(), err)
+			"Error waiting for user (%s) state to be deleted: %s", d.Id(), err)
 	}
 
 	return nil
 }
 
-func userStateRefreshFunc(client *auth.Client, uid string, failStates []string) resource.StateRefreshFunc {
+func userStateRefreshFunc(client *auth.Client, uid string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		log.Printf("[DEBUG] Checking user (%s) state", uid)
+		log.Printf("[DEBUG] Checking user (%s) state\n", uid)
 		userRecord, err := client.GetUser(context.Background(), uid)
+		log.Printf("[DEBUG] UserRecord: %+v)\n", userRecord)
 		if err != nil {
-			log.Printf("[DEBUG] The user (%s) doesn't exist state (deleted)", uid)
-			return nil, "deleted", nil
+			log.Printf("[DEBUG] The user (%s) doesn't exist state (deleted)\n", uid)
+			return auth.UserInfo{}, "deleted", nil
 		}
-		log.Printf("[DEBUG] The user (%s) exists state (created)", uid)
+		log.Printf("[DEBUG] The user (%s) exists state (created)\n", uid)
 		return userRecord, "created", nil
 	}
 }
