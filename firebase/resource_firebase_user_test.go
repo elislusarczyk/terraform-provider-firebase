@@ -1,20 +1,13 @@
 package firebase
 
 import (
-	// "context"
-	// "encoding/json"
-	// "reflect"
-	// "strings"
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-
-	// "google.golang.org/api/identitytoolkit/v3"
 
 	"firebase.google.com/go/auth"
 )
@@ -54,26 +47,24 @@ var testUser = &auth.UserRecord{
 	CustomClaims: map[string]interface{}{"admin": true, "package": "gold"},
 }
 
-func TestAccFirebaseUser(t *testing.T) {
+func TestAccFirebaseUser_basic(t *testing.T) {
 	var v auth.UserRecord
 
-	rInt := acctest.RandInt()
-
-	testCheck := func(rInt int) func(*terraform.State) error {
+	testCheck := func() func(*terraform.State) error {
 		return func(*terraform.State) error {
-			if v.UserInfo.UID != testUser.UserInfo.UID {
+			if v.UserInfo != nil && v.UserInfo.UID != testUser.UserInfo.UID {
 				return fmt.Errorf("incorrect UID: %#v", v.UserInfo.UID)
 			}
-			if v.UserInfo.Email != testUser.UserInfo.Email {
+			if v.UserInfo != nil && v.UserInfo.Email != testUser.UserInfo.Email {
 				return fmt.Errorf("incorrect Email: %#v", v.UserInfo.Email)
 			}
-			if v.UserInfo.PhoneNumber != testUser.UserInfo.PhoneNumber {
+			if v.UserInfo != nil && v.UserInfo.PhoneNumber != testUser.UserInfo.PhoneNumber {
 				return fmt.Errorf("incorrect PhoneNumber: %#v", v.UserInfo.PhoneNumber)
 			}
-			if v.UserInfo.DisplayName != testUser.UserInfo.DisplayName {
+			if v.UserInfo != nil && v.UserInfo.DisplayName != testUser.UserInfo.DisplayName {
 				return fmt.Errorf("incorrect DisplayName: %#v", v.UserInfo.DisplayName)
 			}
-			if v.UserInfo.PhotoURL != testUser.UserInfo.PhotoURL {
+			if v.UserInfo != nil && v.UserInfo.PhotoURL != testUser.UserInfo.PhotoURL {
 				return fmt.Errorf("incorrect PhotoURL: %#v", v.UserInfo.PhotoURL)
 			}
 			return nil
@@ -81,8 +72,8 @@ func TestAccFirebaseUser(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:      func() { testAccPreCheck(t) },
 		IDRefreshName: "firebase_user.john_doe",
+		PreCheck:      func() { testAccPreCheck(t) },
 		Providers:     testAccProviders,
 		CheckDestroy:  testAccCheckUserDestroy,
 		Steps: []resource.TestStep{
@@ -90,23 +81,8 @@ func TestAccFirebaseUser(t *testing.T) {
 				Config: testAccUserConfig(testUser),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckUserExists("firebase_user.john_doe", &v),
-					testCheck(rInt),
-					resource.TestCheckResourceAttr(
-						"firebase_user.john_doe",
-						"uid",
-						"2d5ae085-679b-4a92-89e7-97cced6d4c79"),
-					resource.TestCheckResourceAttr(
-						"firebase_user.john_doe",
-						"email",
-						"john.doe@example.com"),
+					testCheck(),
 				),
-			},
-			{
-				Config: testAccUserConfig(testUser),
-				Check: func(*terraform.State) error {
-					auth := testAccProvider.Meta().(Client).Auth
-					return auth.DeleteUser(context.Background(), testUser.UID)
-				},
 			},
 		},
 	})
@@ -126,7 +102,6 @@ func testAccCheckUserDestroyWithProvider(s *terraform.State, provider *schema.Pr
 		if err == nil {
 			return fmt.Errorf("Found existing user: %s", userRecord.UserInfo.UID)
 		}
-		return err
 	}
 	return nil
 }
@@ -151,10 +126,10 @@ func testAccCheckUserExistsWithProvider(n string, u *auth.UserRecord, providerF 
 		client := provider.Meta().(Client).Auth
 		_, err := client.GetUser(context.Background(), testUser.UserInfo.UID)
 		if err != nil {
-			return err
+			return fmt.Errorf("User not found err %s", err)
 		}
 
-		return fmt.Errorf("User not found")
+		return nil
 	}
 }
 
