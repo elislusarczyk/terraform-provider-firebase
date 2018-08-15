@@ -35,7 +35,7 @@ Clone repository to: `$GOPATH/src/github.com/terraform-providers/terraform-provi
 
 ```sh
 $ mkdir -p $GOPATH/src/github.com/terraform-providers; cd $GOPATH/src/github.com/terraform-providers
-$ git clone git@github.com:terraform-providers/terraform-provider-firebase
+$ git clone git@github.com:eliaszs/terraform-provider-firebase.git
 ```
 
 Enter the provider directory and build the provider
